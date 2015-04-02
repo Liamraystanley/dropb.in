@@ -3,7 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Disable mobile zooming to prevent breaking, and hiding code behind navbars -->
+    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"> -->
     <meta name="description" content="Paste.ml -- pastebin webservice.">
     <meta name="author" content="Liam Stanley">
     <link rel="shortcut icon" href="/static/img/favicon.ico">
@@ -26,9 +27,15 @@
         {% block content %}{% endblock content %}
       </div>
       <div id="sidebar-wrapper">
-        <span data-toggle="tooltip" title="Login" class="sidebar-item">
-          <img class="img-responsive img-circle" src="http://www.fsrinc.org/images/avatar_default.png" data-toggle="modal" data-target=".bs-example-modal-sm" />
-        </span>
+        {% if session.authed %}
+          <span title="{{ session.git.name }}" class="sidebar-item">
+            <img class="img-responsive img-circle" src="{{ session.git.avatar_url }}" />
+          </span>
+        {% else %}
+          <span data-toggle="popover" title="" class="sidebar-item">
+            <img class="img-responsive img-circle" src="http://www.fsrinc.org/images/avatar_default.png" />
+          </span>
+        {% endif %}
         {% if not paste %}
           <span data-toggle="tooltip" title="Save paste" class="sidebar-item">
             <a href="#"><i class="fa fa-save"></i></a>
@@ -63,19 +70,8 @@
       <div class="modal-dialog modal-sm">
         <div class="modal-content">
           <form class="form-signin">
-            <h2 class="form-signin-heading">Please sign in</h2>
-            <label for="inputEmail" class="sr-only">Email address</label>
-            <input type="email" id="inputEmail" class="form-control" placeholder="Email address" required autofocus>
-            <label for="inputPassword" class="sr-only">Password</label>
-            <input type="password" id="inputPassword" class="form-control" placeholder="Password" required>
-            <div class="btn-group btn-group-justified" role="group">
-              <div class="btn-group" role="group">
-                <button class="btn btn-md btn-primary" type="submit">Sign in</button>
-              </div>
-              <div class="btn-group" role="group">
-                <button class="btn btn-md btn-success" type="submit">Create account</button>
-              </div>
-            </div>
+            <h2 class="form-signin-heading">Sign in using Github</h2>
+            <a href="#" class="btn btn-primary btn-md">Sign in using Github <i class="fa fa-github"></i></a>
           </form>
         </div>
       </div>

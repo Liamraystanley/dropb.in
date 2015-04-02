@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}
+{% if errors %}
+  Error!
+{% endif %}
+{% if warnings %}
+  Warning!
+{% endif %}
+{% if msgs %}
+  Messages!
+{% endif %}
+{% if success %}
+  {% for msg in success %}
+    <div class="message alert alert-success" role="alert"><b>Success!</b> {{ msg|safe }}</div>
+  {% endfor %}
+{% endif %}
+{% endblock title %}
+{% block content %}
+  {% if errors %}
+    {% for msg in errors %}
+      <div class="message alert alert-danger" role="alert"><b>Error</b>: {{ msg|safe }}</div>
+    {% endfor %}
+  {% endif %}
+  {% if warnings %}
+    {% for msg in warnings %}
+      <div class="message alert alert-warning" role="alert"><b>Warning</b>: {{ msg|safe }}</div>
+    {% endfor %}
+  {% endif %}
+  {% if msgs %}
+    {% for msg in msgs %}
+      <div class="message alert alert-info" role="alert">{{ msg|safe }}</div>
+    {% endfor %}
+  {% endif %}
+  {% if success %}
+    {% for msg in success %}
+      <div class="message alert alert-success" role="alert"><b>Success!</b> {{ msg|safe }}</div>
+    {% endfor %}
+  {% endif %}
+{% endblock content %}

@@ -1,7 +1,16 @@
 #!/usr/bin/python
-import flask
-# import os
 
+import sys
+sys.path += ['lib']
+import os
+import ConfigParser
+import flask
+import requests
+import utils
+from pprint import pprint
+
+
+cfg = ConfigParser.ConfigParser()
 app = flask.Flask(__name__)
 
 
@@ -104,6 +113,109 @@ def plaintext(paste):
     return flask.Response(example.strip('\n'), mimetype='text/plain')
 
 
+@app.route('/login')
+def process_login():
+    if 'authed' in flask.session:
+        return flask.redirect('/')
+    errors, warnings, msgs = [], [], []
+    args = flask.request.args
+    err = args.get('error')
+
+    if err:
+        # More info: http://git.io/veeEM
+        # We've got to figure out what specifically is the issue, then depending
+        # on what it is, send the end user a response as a heads-up
+        if err == 'application_suspended':
+            errors.append('An internal error occurred. Please contact <a href="mailto:%s">%s</a> if the issue persists.' % (
+                cfg.get('Contact-info', 'email'), cfg.get('Contact-info', 'name')
+            ))
+        elif err == 'redirect_uri_mismatch':
+            errors.append('An internal error occurred. Please contact <a href="mailto:%s">%s</a> if the issue persists.' % (
+                cfg.get('Contact-info', 'email'), cfg.get('Contact-info', 'name')
+            ))
+        elif err == 'access_denied':
+            msgs.append(
+                'To be able to use this service, you will need to login to Github and validate paste.ml.<br><br>'
+                '<a href="/login" class="btn btn-md btn-success">Please try again <i class="fa fa-chevron-right"></i></a>'
+            )
+        else:
+            errors.append('An unknown response from Github was received. Unable to authenticate you.')
+    elif args.get('code'):
+        # "If the user accepts your request, GitHub redirects back to your site
+        # with a temporary code in a code parameter as well as the state you
+        # provided in the previous step in a state parameter. If the states don't
+        # match, the request has been created by a third party and the process
+        # should be aborted."
+        if args.get('state') == flask.session['state']:
+            # Actually do the stuff here, as we've confirmed it's a response
+            # from Github.
+
+            # This is what we need to get the oauth token, to pull api data
+            flask.session['code'] = args['code']
+
+            uri = 'https://github.com/login/oauth/access_token'
+            headers = {
+                'Accept': 'application/json'
+            }
+            payload = {
+                'client_id': cfg.get('Github', 'client-id'),
+                'client_secret': cfg.get('Github', 'client-secret'),
+                'code': flask.session['code']
+            }
+            try:
+                data = requests.post(uri, headers=headers, data=payload, timeout=10).json()
+                # pprint(data)
+                if 'error' in data:
+                    if data['error'] == 'incorrect_client_credentials':
+                        errors.append('An internal error occurred. Please contact <a href="mailto:%s">%s</a> if the issue persists.' % (
+                            cfg.get('Contact-info', 'email'), cfg.get('Contact-info', 'name')
+                        ))
+                    elif data['error'] == 'redirect_uri_mismatch':
+                        errors.append('An internal error occurred. Please contact <a href="mailto:%s">%s</a> if the issue persists.' % (
+                            cfg.get('Contact-info', 'email'), cfg.get('Contact-info', 'name')
+                        ))
+                    elif data['error'] == 'bad_verification_code':
+                        msgs.append(
+                            'It seems when attempting to login you in, your session has expired.<br><br>'
+                            '<a href="/login" class="btn btn-md btn-success">Please try again <i class="fa fa-chevron-right"></i></a>'
+                        )
+                    else:
+                        errors.append('An unknown response from Github was received. Unable to authenticate you.')
+                else:
+                    flask.session['token'] = data['access_token']
+                    # Now, we should be good to make API calls
+                    # In the future, store the last etag from the last call
+                    # just in case, because then we can:
+                    #   * Prevent rate-limiting more
+                    #   * Allow quicker API checks to finish the login process
+                    uri = 'https://api.github.com/user'
+                    headers = {
+                        'Authorization': 'token %s' % flask.session['token'],
+                        # Per Githubs request, we're adding a user-agent just
+                        # in case they need to get ahold of us.
+                        'User-Agent': 'https://github.com/Liamraystanley/paste.ml.git'
+                    }
+                    api_call = requests.get(uri, headers=headers).json()
+                    flask.session['git'] = api_call
+                    flask.session['authed'] = True
+            except:
+                errors.append('There was an error authenticating with Github. Please try again.')
+        else:
+            # The state GET attribute either exists and doesn't match, or doesn't
+            # exist. Either way, it's not legitimate.
+            errors.append('Invalid information returned from Github. Was the authentication spoofed?')
+    else:
+        # We need to start constructing the authorization URL here.
+        uri = 'https://github.com/login/oauth/authorize?client_id={id}&state={rand}'
+        flask.session['state'] = utils.gen_rand(10)
+        return flask.redirect(uri.format(id=cfg.get('Github', 'client-id'), rand=flask.session['state']))
+
+    if errors or warnings or msgs:
+        return flask.render_template('messages.html', errors=errors, warnings=warnings, msgs=msgs)
+    else:
+        return flask.redirect('/')  # temp
+
+
 @app.context_processor
 def utility_processor():
     def commas(number):
@@ -114,11 +226,19 @@ def utility_processor():
     )
 
 
-# @app.errorhandler(404)
-# def page_not_found(error):
-#     return flask.render_template('404.html'), 404
+@app.errorhandler(404)
+def page_not_found(error):
+    """ Catch all for any outdated pastes, or anything of that sort """
+    return flask.redirect('/')
 
 
 if __name__ == '__main__':
+    try:
+        cfg.read('main.cfg')
+    except Exception as e:
+        print("There was an issue parsing main.cfg (%s)" % str(e))
+        print("Please fix these issues then restart paste.ml!")
+        os._exit(1)
+    app.secret_key = cfg.get('General', 'salt')
     app.debug = True
-    app.run(host='0.0.0.0', port=80)
+    app.run(host='0.0.0.0', port=8080)

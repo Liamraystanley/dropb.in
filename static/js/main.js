@@ -7,6 +7,12 @@ $(function() {
         container: 'body',
         placement: 'left'
     });
+    $('[data-toggle="popover"]').popover({
+        container: 'body',
+        placement: 'left',
+        html: true,
+        content: '<a href="/login" class="btn btn-primary btn-md">Sign in using Github <i class="fa fa-github"></i></a>'
+    });
 });
 
 

@@ -4,7 +4,8 @@
 
 $sidebar-width: 50px;
 $lines-width: 55px;
-$bg-color: #252525; //#00282C
+$bg-color: #252525; // #00282C
+$bg-special: #007381;
 
 .reset {
     height: 100%;
@@ -27,7 +28,7 @@ html, body {
 }
 
 #wrapper {
-    background-color: $bg-color; /* #007381 */
+    background-color: $bg-color; /* $bg-special */
     @extend .reset;
 }
 
@@ -48,10 +49,10 @@ html, body {
     font-size: $sidebar-width - 15;
     img {
         width: $sidebar-width - 20;
-        border: 2px solid #007381;
+        border: 2px solid $bg-special;
     }
     a {
-        color: #007381;
+        color: $bg-special;
     }
 }
 
@@ -74,8 +75,8 @@ html, body {
     font-size: 13px;
     overflow: visible;
     display: inline-block;
-    //white-space: pre-wrap;
-    //word-wrap: break-word;
+    // white-space: pre-wrap;
+    // word-wrap: break-word;
 }
 
 a {
@@ -97,11 +98,10 @@ a {
     font-family: monospace;
     font-size: 13px;
     color: #919191;
-    -webkit-user-select: none; /* Chrome/Safari */        
+    -webkit-user-select: none; /* Chrome/Safari */
     -moz-user-select: none; /* Firefox */
     -ms-user-select: none; /* IE10+ */
-
-    /* Rules below not implemented in browsers yet */
+    /* Not implemented bny any browsers just yet */
     -o-user-select: none;
     user-select: none;
     a {
@@ -133,7 +133,7 @@ a {
     margin-right: -5px;
     position: fixed;
     font-size: 30px;
-    color: #007381;
+    color: $bg-special;
 }
 
 ::-webkit-scrollbar {
@@ -147,7 +147,7 @@ a {
 }
 
 ::-webkit-scrollbar-thumb {
-    background-color: #007381;// #1E72FF;
+    background-color: $bg-special; // #1E72FF
     background-clip: padding-box;
     border: 3px solid $bg-color;
     border-radius: 6px;
@@ -169,7 +169,7 @@ a {
     top: $pad;
     right: $sidebar-width + $pad;
     span {
-        background-color: #007381;
+        background-color: $bg-special;
         color: #939393;
         padding: 2px 3px 2px 3px;
         margin-left: 2px;
@@ -185,42 +185,20 @@ a {
     padding-top: 0;
 }
 
-.form-signin .form-signin-heading, .form-signin .checkbox {
-    margin-bottom: 10px;
+.popover-content {
+    padding: 2px;
 }
 
-.form-signin .checkbox {
-    font-weight: normal;
-}
-
-.form-signin .form-control {
-    position: relative;
-    height: auto;
-    -webkit-box-sizing: border-box;
-       -moz-box-sizing: border-box;
-            box-sizing: border-box;
-    padding: 10px;
-    font-size: 16px;
-}
-
-.form-signin .form-control:focus {
-    z-index: 2;
-}
-
-.form-signin input[type="email"] {
-    margin-bottom: -1px;
-    border-bottom-right-radius: 0;
-    border-bottom-left-radius: 0;
-}
-
-.form-signin input[type="password"] {
-    margin-bottom: 10px;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
+.popover {
+    background-color: $bg-color;
+    box-shadow: 0px 0px 3px 1px $bg-special;
 }
 
 .alert {
-  max-width: 500px;
+  min-width: 500px;
+  max-width: 600px;
   margin-left: auto;
   margin-right: auto;
+  margin-top: 50px;
+  text-align: center;
 }
