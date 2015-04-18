@@ -31,10 +31,6 @@
           <span title="{{ session.git.name }}" class="sidebar-item">
             <img class="img-responsive img-circle" src="{{ session.git.avatar_url }}" />
           </span>
-        {% else %}
-          <span data-toggle="popover" title="" class="sidebar-item">
-            <img class="img-responsive img-circle" src="http://www.fsrinc.org/images/avatar_default.png" />
-          </span>
         {% endif %}
         {% if not paste %}
           <span data-toggle="tooltip" title="Save paste" class="sidebar-item">
@@ -57,6 +53,15 @@
         <span data-toggle="tooltip" title="About paste.ml" class="sidebar-item">
           <a href="/about.md"><i class="fa fa-info-circle"></i></a>
         </span>
+        {% if session.authed %}
+          <span data-toggle="tooltip" title="Log out" class="sidebar-item">
+            <a href="/logout"><i class="fa fa-sign-out"></i></a>
+          </span>
+        {% else %}
+          <span data-toggle="tooltip" title="Log in" class="sidebar-item">
+            <a href="/login"><i class="fa fa-sign-in"></i></a>
+          </span>
+        {% endif %}
         <!--<span data-toggle="tooltip" title="Fork on Github" class="sidebar-item">-->
         <!--  <a href="https://github.com/Liamraystanley/paste.ml"><i class="fa fa-github"></i></a>-->
         <!--</span>-->

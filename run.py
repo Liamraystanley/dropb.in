@@ -116,7 +116,8 @@ def plaintext(paste):
 @app.route('/login')
 def process_login():
     if 'authed' in flask.session:
-        return flask.redirect('/')
+        if flask.session['authed']:
+            return flask.redirect('/')
     errors, warnings, msgs = [], [], []
     args = flask.request.args
     err = args.get('error')
@@ -216,6 +217,13 @@ def process_login():
         return flask.redirect('/')  # temp
 
 
+@app.route('/logout')
+def process_logout():
+    if 'authed' in flask.session:
+        flask.session.clear()
+    return flask.redirect('/')
+
+
 @app.context_processor
 def utility_processor():
     def commas(number):
@@ -240,5 +248,5 @@ if __name__ == '__main__':
         print("Please fix these issues then restart paste.ml!")
         os._exit(1)
     app.secret_key = cfg.get('General', 'salt')
-    app.debug = True
-    app.run(host='0.0.0.0', port=8080)
+    app.debug = False
+    app.run(host='0.0.0.0', port=80)
