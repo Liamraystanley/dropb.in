@@ -2,6 +2,8 @@ import flask
 import functools
 import random
 import string
+import sys
+import re
 
 
 def login_required(method):
@@ -42,3 +44,11 @@ def gen_word(min, max):
 
 def gen_rand(size=6, chars=string.ascii_lowercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
+
+
+def validate(id):
+    if not re.match(r'^[A-Za-z0-9]+', id):
+        return False
+    if sys.getsizeof(id) < 1 or sys.getsizeof(id) > 50:
+        return False
+    return True

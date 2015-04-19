@@ -3,10 +3,13 @@
 import sys
 sys.path += ['lib']
 import os
+import time
 import ConfigParser
 import flask
 import requests
 import utils
+import MySQLdb
+import MySQLdb.cursors
 from pprint import pprint
 
 
@@ -14,77 +17,23 @@ cfg = ConfigParser.ConfigParser()
 app = flask.Flask(__name__)
 
 
-example = """$(function() {
-    // $('pre code').each(function(i, block) {
-    //     hljs.highlightBlock(block);
-    // });
-    $('#text-input').focus();
-    $('[data-toggle="tooltip"]').tooltip({
-        container: 'body',
-        placement: 'left'
-    });
-});
+# Attempt to read the configuration file
+try:
+    cfg.read('main.cfg')
+except Exception as e:
+    print("There was an issue parsing main.cfg (%s)" % str(e))
+    print("Please fix these issues then restart paste.ml!")
+    os._exit(1)
 
+db = MySQLdb.connect(
+    host=str(cfg.get('Database', 'db-hostname')),
+    port=int(cfg.get('Database', 'db-port')),
+    user=str(cfg.get('Database', 'db-user')),
+    passwd=str(cfg.get('Database', 'db-password')),
+    db=cfg.get('Database', 'db-name'),
+    cursorclass=MySQLdb.cursors.DictCursor)
 
-/*--------------------------------------------/
-/ Possibly something to use in the future, to /
-/ make it so when using the textarea, it will /
-/ show line #'s. Breaks atm because layout.   /
-/--------------------------------------------*/
-// $(function(){
-//     $('#text-input').bind('input propertychange', function() {
-//         var n_lines = $('#text-input').val().split('\\n').length + 1;
-//         var lines_data = '';
-//         console.log(n_lines);
-//         for (var i = 1; i < n_lines; i++) {
-//             //$("#lines").append('<div>' + i + '.</div>');
-//             var lines_data = lines_data.concat('<div>' + i + '.</div>');
-//         };
-//         console.log(lines_data);
-//         $("#lines-edit").html(lines_data);
-//     });
-// });
-
-function fetch(id) {
-    $.ajax("/api/" + id, {
-        type: "get",
-        dataType: "json",
-        success: function(data) {
-            s = hljs.highlightAuto(data.paste);
-            $("#box").html(s.value);
-            // Add line numbers here
-            for (var i = 0; i < data.lines; i++) {
-                $("#lines").append('<a href="#' + (i + 1) + '"><div id="' + (i + 1) + '">' + (i + 1) + '.</div></a>');
-            }
-            $("#more-info").append("<span>" + s.language + "</span>");
-            $("#more-info").append("<span>" + Number(data.lines).toLocaleString('en') + " lines</span>");
-            $("#more-info").append("<span>" + Number(data.chars).toLocaleString('en') + " chars</span>");
-
-            // As pre doesn't like to disable line wrapping, we're going to have to support it, due to the way the template is setup.
-            // As such.. the best method is to split up the paste, find which lines are longer than the parent div, and append a <br>
-            // to the line number id'd div. Slightly degrades performance on larger pastes.
-
-            // Need to implement multiple-line splitting! Currently only works with ONE line!
-            var id = 1;
-            $($('#box').text().split('\\n')).each(function(index, value) {
-                id += 1;
-                var measure = document.createElement("span");
-                measure.innerText = value;
-                measure.style.display = 'none';
-                $('#box')[0].appendChild(measure);
-                var linewidth = $(measure).width();
-                if (linewidth >= $("#box").width()) {
-                    $("#" + (id - 1)).html((id - 1) + '.' + '<br><br>');
-                }
-                // console.log(index + ": " + $(this).text());
-            });
-        },
-        error: function(e) {
-            // later send a notification of failure...
-        }
-    });
-}
-"""
+prefix = cfg.get('Database', 'db-prefix').rstrip('_')
 
 
 @app.route('/')
@@ -92,25 +41,135 @@ def main():
     return flask.render_template('new.html', paste=False)
 
 
+def uuid():
+    reserved = ['login', 'logout', 'signin', 'signout', 'about', 'index', 'api']
+    while True:
+        _tmp = utils.gen_word(2, 3)
+        if _tmp in reserved:
+            continue
+        if not query("""SELECT id FROM {}_content WHERE id = %s""".format(prefix), [_tmp]):
+            return _tmp
+
+
+@app.route('/dup/<paste>')
+@app.route('/dup/<paste>.<lang>')
+def duplicate(paste, lang=None):
+    if not utils.validate(paste):
+        return flask.redirect('/')
+    return flask.render_template('new.html', dup=paste)
+
+
+@app.route('/api/submit', methods=['POST'])
+def submit():
+    form = flask.request.form
+    req = ['paste', 'language', 'short']
+    for item in req:
+        if item not in form:
+            return flask.jsonify({
+                'success': False,
+                'message': 'Invalid submission data.'
+            })
+
+    # Too short.. anything below 5 characters is really small and is likely bullshit
+    if len(form['paste']) < 5:
+        return flask.jsonify({
+            'success': False,
+            'message': 'Paste is too short!'
+        })
+
+    # Too long. It's set to 70,000 characters as this is both degrading to the end
+    # user, as well as the server. Anything above this is getting to be rediculous.
+    if len(form['paste']) > 70000:
+        return flask.jsonify({
+            'success': False,
+            'message': 'Paste is too long!'
+        })
+
+    # Theoretically at this point there shouldn't be any other errors, maybe in
+    # the future, check to see if a user is in a blacklisted set of IP's/users?
+
+    id = uuid()
+    author = int(flask.session['git']['id']) if 'authed' in flask.session else None
+    language = form['language'] if form['language'] else None
+    language_short = form['short'] if form['short'] else None
+    created = int(time.time())
+    last_view = created
+    last_modified = created
+    ip = flask.request.remote_addr
+    if language_short:
+        uri = "%s.%s" % (id, language_short)
+    elif language:
+        uri = "%s.%s" % (id, language)
+    else:
+        uri = id
+    query("""INSERT INTO {}_content VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""".format(prefix), (
+        id, form['paste'], author, language, language_short, created, last_view, last_modified, ip))
+
+    return flask.jsonify({
+        'success': True,
+        'message': 'Created paste',
+        'uri': uri,
+    })
+
+
 @app.route('/<paste>')
 def pull_paste(paste):
-    return flask.render_template('paste.html', paste="herp")
+    if not utils.validate(paste):
+        return flask.redirect('/')
+    return flask.render_template('paste.html', paste=paste)
 
 
 @app.route('/api/<paste>')
-def raw(paste):
-    tmp = example.strip('\n')
+@app.route('/api/<paste>.<lang>')
+def api(paste, lang=None):
+    if not utils.validate(paste):
+        return flask.redirect('/')
+    if paste.lower() == 'about' and str(lang).lower() == 'md':
+        try:
+            with open('README.md', 'r') as f:
+                file = f.read()
+                data = {
+                    'paste': file,
+                    'lines': len(file.split('\n')),
+                    'chars': len(file),
+                    'language': 'markdown'
+                }
+                return flask.jsonify(data)
+        except:
+            pass
+    _tmp = query("""SELECT * FROM {}_content WHERE id = %s""".format(prefix), [paste.lower()])
+    if len(_tmp) > 1 or len(_tmp) < 1:
+        return flask.redirect('/')
+
+    query("""UPDATE {}_content SET last_view = %s WHERE id = %s""".format(prefix), [int(time.time()), paste.lower()])
+    if not lang:
+        lang = _tmp[0]['language']
+    else:
+        lang = lang.lower()
     data = {
-        'paste': tmp.strip('\n'),
-        'lines': len(tmp.split('\n')),
-        'chars': len(tmp)
+        'paste': _tmp[0]['content'],
+        'lines': len(_tmp[0]['content'].split('\n')),
+        'chars': len(_tmp[0]['content']),
+        'language': lang
     }
     return flask.jsonify(data)
 
 
 @app.route('/t/<paste>')
-def plaintext(paste):
-    return flask.Response(example.strip('\n'), mimetype='text/plain')
+@app.route('/t/<paste>.<lang>')
+def plaintext(paste, lang=None):
+    if not utils.validate(paste):
+        return flask.redirect('/')
+    if paste.lower() == 'about' and str(lang).lower() == 'md':
+        try:
+            with open('README.md', 'r') as f:
+                return flask.Response(f.read(), mimetype='text/plain')
+        except:
+            pass
+    _tmp = query("""SELECT * FROM {}_content WHERE id = %s""".format(prefix), [paste.lower()])
+    if len(_tmp) > 1 or len(_tmp) < 1:
+        return flask.redirect('/')
+    return flask.Response(_tmp[0]['content'], mimetype='text/plain')
 
 
 @app.route('/login')
@@ -121,6 +180,10 @@ def process_login():
     errors, warnings, msgs = [], [], []
     args = flask.request.args
     err = args.get('error')
+
+    # Support using next for anything inter-website
+    if args.get('next'):
+        flask.session['next'] = args.get('next')
 
     if err:
         # More info: http://git.io/veeEM
@@ -197,6 +260,7 @@ def process_login():
                         'User-Agent': 'https://github.com/Liamraystanley/paste.ml.git'
                     }
                     api_call = requests.get(uri, headers=headers).json()
+                    pprint(api_call)
                     flask.session['git'] = api_call
                     flask.session['authed'] = True
             except:
@@ -214,13 +278,20 @@ def process_login():
     if errors or warnings or msgs:
         return flask.render_template('messages.html', errors=errors, warnings=warnings, msgs=msgs)
     else:
-        return flask.redirect('/')  # temp
+        # Support using next for anything inter-website
+        if 'next' in flask.session:
+            return flask.redirect('/%s' % flask.session['next'])
+        return flask.redirect('/')  # Eventually we'll redirect to a controlpanel?
 
 
 @app.route('/logout')
 def process_logout():
     if 'authed' in flask.session:
         flask.session.clear()
+
+    # Support using next for anything inter-website
+    if flask.request.args.get('next'):
+        return flask.redirect('/%s' % flask.request.args.get('next'))
     return flask.redirect('/')
 
 
@@ -240,13 +311,52 @@ def page_not_found(error):
     return flask.redirect('/')
 
 
-if __name__ == '__main__':
+def query(*args):
+    global db
+    c = db.cursor()
     try:
-        cfg.read('main.cfg')
-    except Exception as e:
-        print("There was an issue parsing main.cfg (%s)" % str(e))
-        print("Please fix these issues then restart paste.ml!")
-        os._exit(1)
+        c.execute(*args)
+        db.commit()
+    except:
+        try:
+            db.rollback()
+        except:
+            pass
+    data = list(c.fetchall())
+    return data
+
+
+def main():
     app.secret_key = cfg.get('General', 'salt')
+    # Do some initial stuff with tables to ensure everythings been added:
+    query("""CREATE TABLE IF NOT EXISTS {}_content (
+        id VARCHAR(50) NOT NULL,
+        content MEDIUMTEXT,
+        author INTEGER,
+        language VARCHAR(50),
+        language_short VARCHAR(50),
+        created INTEGER NOT NULL,
+        last_view INTEGER NOT NULL,
+        last_modified INTEGER NOT NULL,
+        ip VARCHAR(255) NOT NULL,
+        PRIMARY KEY (id)
+    )""".format(prefix))
+
+    query("""CREATE TABLE IF NOT EXISTS {}_users (
+        uid INTEGER NOT NULL,
+        login VARCHAR(255) NOT NULL,
+        name VARCHAR(255),
+        avatar VARCHAR(255),
+        location VARCHAR(255),
+        email VARCHAR(255),
+        created INTEGER NOT NULL,
+        last_login INTEGER NOT NULL,
+        admin BOOLEAN,
+        PRIMARY KEY (uid)
+    )""".format(prefix))
+
+
+if __name__ == '__main__':
+    main()
     app.debug = False
-    app.run(host='0.0.0.0', port=80)
+    app.run(host='0.0.0.0', port=4444)

@@ -1,10 +1,12 @@
 {% extends 'base.html' %}
 {% block title %}{{ paste }}{% endblock title %}
 {% block content %}
-  <div id="more-info"></div>
-  <script type="text/javascript">
-    fetch('id');
-  </script>
-  <div id="lines"></div>
-  <pre id="box" tabindex="0"><span id="loading"><i class="fa fa-spinner fa-pulse"></i> Loading...</span></pre>
+    <div id="more-info"></div>
+    <script type="text/javascript">
+        fetch('{{ paste }}', 'load');
+    </script>
+    <div id="lines"></div>
+    <pre id="box" tabindex="0">
+        <div class="loader">Loading...</div>
+    </pre>
 {% endblock content %}

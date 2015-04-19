@@ -1,8 +1,16 @@
 {% extends 'base.html' %}
 {% block title %}New{% endblock title %}
 {% block content %}
-  <div id="lines">
-    &gt;
-  </div>
-  <textarea spellcheck="false" id="text-input"></textarea>
+    {% if dup %}
+        <script type="text/javascript">
+          duplicate('{{ dup }}');
+        </script>
+    {% endif %}
+    <div id="lines">
+        &gt;
+    </div>
+    <div id="input-wrapper">
+        <textarea spellcheck="false" id="text-input"></textarea>
+    </div>
+    <div class="loader" style="display: none;">Loading...</div>
 {% endblock content %}
