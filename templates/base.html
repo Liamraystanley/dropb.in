@@ -11,12 +11,15 @@
 
         <title>Paste.ml &middot; {% block title %}{% endblock title %}</title>
 
+        <link href="/static/css/bootstrap.min.css" rel="stylesheet">
         <link href="/static/css/main.css" rel="stylesheet">
+        <link href="/static/css/hl/solarized_light.css" rel="stylesheet">
+        <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
         <script src="/static/js/jquery.min.js"></script>
         <script src="/static/js/highlight.pack.js"></script>
+        <script src="/static/js/main.js"></script>
         <script src="/static/js/bootstrap.min.js"></script>
         <script src="/static/js/notify.js"></script>
-        <script src="/static/js/main.js"></script>
     </head>
 
     <body>
@@ -27,7 +30,7 @@
             <div id="sidebar-wrapper">
                 {% if session.authed %}
                     <span title="{{ session.git.name }}" class="sidebar-item">
-                        <img class="img-responsive img-circle" src="{{ session.git.avatar_url }}" />
+                        <img class="img-responsive img-circle" src="{{ session.git.avatar_url }}" data-toggle="modal" data-target="#controlPanel" />
                     </span>
                 {% endif %}
                 {% if not paste %}
@@ -40,17 +43,21 @@
                 </span>
                 {% if paste %}
                     <span class="sep">------</span>
-                    <span data-toggle="tooltip" title="Duplicate and edit" class="sidebar-item">
-                        <a href="/dup/{{ paste }}"><i class="fa fa-edit"></i></a>
-                    </span>
+                    {% if paste != 'about.md' %}
+                        <span data-toggle="tooltip" title="Duplicate and edit" class="sidebar-item">
+                            <a href="/dup/{{ paste }}"><i class="fa fa-copy"></i></a>
+                        </span>
+                    {% endif %}
                     <span data-toggle="tooltip" title="Just text" class="sidebar-item">
                         <a href="/t/{{ paste }}"><i class="fa fa-file-text"></i></a>
                     </span>
                 {% endif %}
                 <span class="sep">------</span>
-                <span data-toggle="tooltip" title="About paste.ml" class="sidebar-item">
-                    <a href="/about.md"><i class="fa fa-info-circle"></i></a>
-                </span>
+                {% if paste != 'about.md' %}
+                    <span data-toggle="tooltip" title="About paste.ml" class="sidebar-item">
+                        <a href="/about.md"><i class="fa fa-info-circle"></i></a>
+                    </span>
+                {% endif %}
                 {% if session.authed %}
                     <span data-toggle="tooltip" title="Log out" class="sidebar-item">
                         {% if paste %}
@@ -77,15 +84,8 @@
                 <a href="/"><p id="logo">paste.ml</p></a>
             </div>
         </div>
-        <div class="modal fade bs-example-modal-sm" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-sm">
-                <div class="modal-content">
-                    <form class="form-signin">
-                        <h2 class="form-signin-heading">Sign in using Github</h2>
-                        <a href="#" class="btn btn-primary btn-md">Sign in using Github <i class="fa fa-github"></i></a>
-                    </form>
-                </div>
-            </div>
-        </div>
+        {% if session.authed %}
+            {% include 'panel.html' %}
+        {% endif %}
     </body>
 </html>

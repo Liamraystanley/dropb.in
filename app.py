@@ -10,6 +10,7 @@ import requests
 import utils
 import MySQLdb
 import MySQLdb.cursors
+from thread import start_new_thread as daemonize
 from pprint import pprint
 
 
@@ -25,20 +26,44 @@ except Exception as e:
     print("Please fix these issues then restart paste.ml!")
     os._exit(1)
 
-db = MySQLdb.connect(
-    host=str(cfg.get('Database', 'db-hostname')),
-    port=int(cfg.get('Database', 'db-port')),
-    user=str(cfg.get('Database', 'db-user')),
-    passwd=str(cfg.get('Database', 'db-password')),
-    db=cfg.get('Database', 'db-name'),
-    cursorclass=MySQLdb.cursors.DictCursor)
 
+def db_connect():
+    return MySQLdb.connect(
+        host=str(cfg.get('Database', 'db-hostname')),
+        port=int(cfg.get('Database', 'db-port')),
+        user=str(cfg.get('Database', 'db-user')),
+        passwd=str(cfg.get('Database', 'db-password')),
+        db=cfg.get('Database', 'db-name'),
+        cursorclass=MySQLdb.cursors.DictCursor)
+
+
+def query(*args):
+    global db
+
+    print repr(db.open)
+    if not db.open:
+        db = db_connect()
+
+    c = db.cursor()
+    try:
+        c.execute(*args)
+        db.commit()
+    except:
+        try:
+            db.rollback()
+        except:
+            pass
+    data = list(c.fetchall())
+    return data
+
+
+def bg_query(*args):
+    """ Run a query in the background if it's not runtime dependant """
+    return daemonize(query, tuple(args))
+
+
+db = db_connect()
 prefix = cfg.get('Database', 'db-prefix').rstrip('_')
-
-
-@app.route('/')
-def main():
-    return flask.render_template('new.html', paste=False)
 
 
 def uuid():
@@ -49,6 +74,10 @@ def uuid():
             continue
         if not query("""SELECT id FROM {}_content WHERE id = %s""".format(prefix), [_tmp]):
             return _tmp
+
+@app.route('/')
+def main():
+    return flask.render_template('new.html', paste=False)
 
 
 @app.route('/dup/<paste>')
@@ -116,7 +145,7 @@ def submit():
 def pull_paste(paste):
     if not utils.validate(paste):
         return flask.redirect('/')
-    return flask.render_template('paste.html', paste=paste)
+    return flask.render_template('paste.html', paste=paste.lower())
 
 
 @app.route('/api/<paste>')
@@ -141,7 +170,7 @@ def api(paste, lang=None):
     if len(_tmp) > 1 or len(_tmp) < 1:
         return flask.redirect('/')
 
-    query("""UPDATE {}_content SET last_view = %s WHERE id = %s""".format(prefix), [int(time.time()), paste.lower()])
+    bg_query("""UPDATE {}_content SET last_view = %s WHERE id = %s""".format(prefix), [int(time.time()), paste.lower()])
     if not lang:
         lang = _tmp[0]['language']
     else:
@@ -169,6 +198,7 @@ def plaintext(paste, lang=None):
     _tmp = query("""SELECT * FROM {}_content WHERE id = %s""".format(prefix), [paste.lower()])
     if len(_tmp) > 1 or len(_tmp) < 1:
         return flask.redirect('/')
+    bg_query("""UPDATE {}_content SET last_view = %s WHERE id = %s""".format(prefix), [int(time.time()), paste.lower()])
     return flask.Response(_tmp[0]['content'], mimetype='text/plain')
 
 
@@ -311,19 +341,15 @@ def page_not_found(error):
     return flask.redirect('/')
 
 
-def query(*args):
-    global db
-    c = db.cursor()
-    try:
-        c.execute(*args)
-        db.commit()
-    except:
-        try:
-            db.rollback()
-        except:
-            pass
-    data = list(c.fetchall())
-    return data
+# @app.after_request
+# def add_header(response):
+#     """
+#         Add headers to both force latest IE rendering engine or Chrome Frame,
+#         and also to cache the rendered page for 10 minutes.
+#     """
+#     response.headers['X-UA-Compatible'] = 'IE=Edge,chrome=1'
+#     response.headers['Cache-Control'] = 'public, max-age=600'
+#     return response
 
 
 def main():
@@ -356,7 +382,8 @@ def main():
     )""".format(prefix))
 
 
+main()
+
 if __name__ == '__main__':
-    main()
-    app.debug = False
+    app.debug = True
     app.run(host='0.0.0.0', port=4444)

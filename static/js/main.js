@@ -22,7 +22,7 @@ $(function() {
         if ($("#text-input").val().length < 1) {
             return
         }
-        $("#text-input").css("display", "none");
+        $("#input-wrapper").hide();
         $(".loader").show();
         window.issubmit = true
         _tmp = hljs.highlightAuto($("#text-input").val());
@@ -55,7 +55,7 @@ $(function() {
                 if (!data.success) {
                     error_notify(data.message);
                     window.issubmit = false;
-                    $("#text-input").show();
+                    $("#input-wrapper").show();
                     $(".loader").hide();
                 } else {
                     // notice_notify(data.message);
@@ -65,11 +65,16 @@ $(function() {
             error: function(e) {
                 error_notify("An unexpected error occurred.");
                 window.issubmit = false;
-                $("#text-input").show();
+                $("#input-wrapper").show();
                 $(".loader").hide();
             }
         });
     });
+
+    $('#controlPanel').on('shown.bs.modal', function (e) {
+        $('#cp-pastes a:first').tab('show');
+        //if (!data) return e.preventDefault() // stops modal from being shown
+    })
 });
 
 
@@ -84,7 +89,7 @@ function notice_notify(text) {
 function fetch(id, method) {
     $.ajax("/api/" + id, {
         type: "get",
-        timeout: 7000,
+        timeout: 14000,
         dataType: "json",
         success: function(data) {
             s = hljs.highlightAuto(data.paste, [data.language]);
@@ -117,7 +122,7 @@ function fetch(id, method) {
 function duplicate(id) {
     $.ajax("/api/" + id, {
         type: "get",
-        timeout: 7000,
+        timeout: 14000,
         dataType: "json",
         success: function(data) {
             $("#text-input").val(data.paste);

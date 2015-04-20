@@ -47,8 +47,12 @@ def gen_rand(size=6, chars=string.ascii_lowercase + string.digits):
 
 
 def validate(id):
-    if not re.match(r'^[A-Za-z0-9]+', id):
+    try:
+        id_encoded = id.encode('utf-8')
+        if not re.match(r'^[A-Za-z0-9]+', id):
+            return False
+        if sys.getsizeof(id_encoded) < 1 or sys.getsizeof(id_encoded) > 50:
+            return False
+        return True
+    except:
         return False
-    if sys.getsizeof(id) < 1 or sys.getsizeof(id) > 50:
-        return False
-    return True
