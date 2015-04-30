@@ -1,11 +1,11 @@
-# Welcome to paste.ml
-paste.ml is a Python based, elegant and simple pastebin web service. It takes a
+# Welcome to Dropbin
+Dropbin is a Python based, elegant and simple pastebin web service. It takes a
 simplistic twist off hastebin.com's beautiful frontend with a little bit more
 integration and added features.
 
 ## Warning!
 
-The webservice currently hosted at http://paste.ml is very much so in beta status,
+The webservice currently hosted at https://dropb.in is very much so in beta status,
 and as such, I would not recommend storing any import information within it, as
 the backend and front are likely to change, and databases will be wiped prior to
 its initial release out in the wild.
@@ -26,19 +26,19 @@ Create the database to use (make sure this matches the one listed within your
 configuration file) by opening a mysql command prompt `$ mysql -u root -p`:
 
 ```sql
-mysql> CREATE DATABASE pasteml_db;
+mysql> CREATE DATABASE drop_db;
 ```
 
 Generate a user to use for the database:
 
 ```sql
-CREATE USER 'pasteml_user'@'localhost' IDENTIFIED BY 'yourpassword';
+CREATE USER 'drop_user'@'localhost' IDENTIFIED BY 'yourpassword';
 ```
 
 And last but not least, grant that user permissions for the database:
 
 ```sql
-mysql> GRANT ALL PRIVILEGES ON pasteml_db.* TO 'pasteml_user'@'localhost';
+mysql> GRANT ALL PRIVILEGES ON drop_db.* TO 'drop_user'@'localhost';
 ```
 
 ```sql
@@ -74,4 +74,4 @@ $ gunicorn -w 4 -b 0.0.0.0:4444 app:app
 ```
 
 If you happen to have any further issues, feel free to submit it with more
-information [here](https://github.com/Liamraystanley/paste.ml/issues)
+information [here](https://github.com/Liamraystanley/dropbin/issues)

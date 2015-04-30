@@ -2,36 +2,98 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <a class="btn btn-xs btn-primary pull-right" data-dismiss="modal">Close</a>
                 <h4 class="modal-title" id="controlPanelLabel">Control Panel</h4>
             </div>
             <div class="modal-body">
                 <div class="row">
                     <div class="col-sm-2">
                         <ul class="nav nav-pills nav-stacked">
-                            <li class="active"><a href="#cp-pastes" data-toggle="tab">Pastebins</a></li>
-                            <li><a href="#cp-settings" data-toggle="tab">Settings</a></li>
-                            <li><a href="#cp-account" data-toggle="tab">Account</a></li>
+                            <li class="active"><a href="#cp-pastes" data-toggle="tab"><i class="fa fa-paste"></i> Pastes</a></li>
+                            <li><a href="#cp-stats" data-toggle="tab"><i class="fa fa-pie-chart"></i> Stats</a></li>
+                            <li><a href="#cp-settings" data-toggle="tab"><i class="fa fa-cogs"></i> Settings</a></li>
+                            <li><a href="#cp-account" data-toggle="tab"><i class="fa fa-user"></i> Account</a></li>
                         </ul>
                     </div>
                     <div class="col-sm-10">
                         <div class="tab-content">
                             <div class="tab-pane active" id="cp-pastes">
-                                <h2>My pastebins</h2>
-                                <hr>
+                                <h2 style="display:none;">My Pastes</h2>
+                                <div class="tab-messages" style="display:none;"></div>
+                                <div class="content" style="display:none;"></div>
+                            </div>
+                            <div class="tab-pane" id="cp-stats">
+                                <h2 style="display:none;">Stats</h2>
+                                <div class="tab-messages" style="display:none;"></div>
+                                <div class="content" style="display:none;"></div>
                             </div>
                             <div class="tab-pane" id="cp-settings">
+                                <h2 style="display:none;">Settings</h2>
+                                <div class="tab-messages" style="display:none;"></div>
+                                <div class="content" style="display:none;"></div>
                             </div>
                             <div class="tab-pane" id="cp-account">
+                                <h2 style="display:none;">My Account</h2>
+                                <div class="tab-messages" style="display:none;"></div>
+                                <div class="content" style="display:none;"></div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary">Save changes</button>
-            </div>
         </div>
     </div>
 </div>
+{% raw %}
+<script id="cp-pastes-tpl" type="text/x-handlebars-template">
+    <div class="panel panel-primary">
+        <div class="panel-heading">
+            <span class="panel-title">Latest pastes</span>
+            <span class="pull-right">Total pastes: <span class="badge">{{count}}</span></span>
+        </div>
+        <div class="panel-body">
+            <div class="list-group">
+                {{#each posts}}
+                    <span href="#" class="list-group-item">
+                        Paste: <a href="/{{this.id}}{{this.language_short}}"><span class="post-name">{{this.id}}</span></a>
+                        <span class="label label-success">{{this.language}}</span>
+                        <a class="btn btn-xs btn-warning pull-right" href="#">Delete</a>
+                        <a class="btn btn-xs btn-danger pull-right" href="#">Edit</a>
+                        <span class="label label-info pull-right">{{#each this.hrt}}{{#if @first}}{{this}}{{/if}}{{/each}} ago</span>
+                        <span class="badge pull-right">{{this.hits}} hits</span>
+                    </span>
+                {{/each}}
+            </div>
+            <center>
+                <nav>
+                    <ul class="pagination">
+                        <li>
+                            <a href="#" onclick="controlPanel('/api/pastes', '#cp-pastes')" aria-label="First">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        {{#each page_range}}
+                            <li id="page-{{this}}"><a href="#" onclick="controlPanel('/api/pastes/{{this}}', '#cp-pastes')">{{this}}</a></li>
+                        {{/each}}
+                        <li>
+                            <a href="#" onclick="controlPanel('/api/pastes/{{pages}}', '#cp-pastes')" aria-label="Last">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                      </ul>
+                </nav>
+            </center>
+        </div>
+    </div>
+</script>
+<script id="cp-stats-tpl" type="text/x-handlebars-template">
+    <div class="row">
+        <div class="col-sm-6 col-sm-offset-2 cp-graph">
+            <canvas id="cp-stats-graph"></canvas>
+        </div>
+        <div class="col-md-3">
+            <span id="cp-stats-key"></span>
+        </div>
+    </div>
+</script>
+{% endraw %}

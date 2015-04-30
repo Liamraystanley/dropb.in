@@ -8,23 +8,24 @@ import ConfigParser
 import flask
 import requests
 import utils
+import math
 import MySQLdb
 import MySQLdb.cursors
 from thread import start_new_thread as daemonize
 from pprint import pprint
 
 
-cfg = ConfigParser.ConfigParser()
-app = flask.Flask(__name__)
-
-
 # Attempt to read the configuration file
+cfg = ConfigParser.ConfigParser()
 try:
     cfg.read('main.cfg')
 except Exception as e:
     print("There was an issue parsing main.cfg (%s)" % str(e))
     print("Please fix these issues then restart paste.ml!")
     os._exit(1)
+
+app = flask.Flask(__name__)
+prefix = cfg.get('Database', 'db-prefix').rstrip('_')
 
 
 def db_connect():
@@ -38,11 +39,15 @@ def db_connect():
 
 
 def query(*args):
-    global db
+    db = db_connect()
 
-    print repr(db.open)
-    if not db.open:
-        db = db_connect()
+    c = db.cursor()
+    c.execute(*args)
+    return list(c.fetchall())
+
+
+def write(*args):
+    db = db_connect()
 
     c = db.cursor()
     try:
@@ -53,17 +58,12 @@ def query(*args):
             db.rollback()
         except:
             pass
-    data = list(c.fetchall())
-    return data
+    return list(c.fetchall())
 
 
-def bg_query(*args):
+def bg_write(*args):
     """ Run a query in the background if it's not runtime dependant """
-    return daemonize(query, tuple(args))
-
-
-db = db_connect()
-prefix = cfg.get('Database', 'db-prefix').rstrip('_')
+    return daemonize(write, tuple(args))
 
 
 def uuid():
@@ -88,8 +88,65 @@ def duplicate(paste, lang=None):
     return flask.render_template('new.html', dup=paste)
 
 
+@app.route('/api/pastes', methods=['POST'])
+@app.route('/api/pastes/<int:page>', methods=['POST'])
+@utils.auth
+def api_user(page=1):
+    limit = 8  # Assuming they want 8 results per page
+    if page < 1:
+        _page = 1
+    _page = int(page) -1
+    _page = _page * limit
+    data = {}
+    try:
+        data['posts'] = query("""SELECT id, language, language_short, created, last_modified, hits FROM {}_content WHERE author = %s ORDER BY last_modified DESC LIMIT %s,%s""".format(prefix), [flask.session['git']['id'], _page, limit])
+        for i in range(len(data['posts'])):
+            data['posts'][i]['hrt'] = utils.hrt(int(data['posts'][i]['last_modified']))
+            if data['posts'][i]['language_short']:
+                data['posts'][i]['language_short'] = '.' + data['posts'][i]['language_short']
+        data['count'] = query("""SELECT COUNT(id) AS cnt FROM {}_content WHERE author = %s""".format(prefix), [flask.session['git']['id']])[0]['cnt']
+        data['pages'] = int(math.ceil(float(data['count']) / float(8)))
+        data['page_current'] = int(page)
+        if data['page_current'] >= 3:
+            data['page_range'] = range(int(page) - 2, range(data['pages'], data['pages'] + 2)[:2][-1])
+        else:
+            data['page_range'] = range(1, data['pages'] + 1)[:5]
+        data['success'] = True
+        return flask.jsonify(data)
+    except Exception as e:
+        print repr(str(e))
+        data['success'] = False
+        return flask.jsonify(data)
+
+
+@app.route('/api/stats', methods=['POST'])
+def api_stats():
+    data = {}
+    limit = 5
+    try:
+        _lang = query("""SELECT language, COUNT(language) AS ct FROM {}_content WHERE author = %s GROUP BY language ORDER BY ct DESC""".format(prefix), [flask.session['git']['id']])
+        for i in range(len(_lang)):
+            if _lang[i]['ct'] < 1:
+                _lang[i]['ct'] = 1
+        if len(_lang) > 5:
+            cnt = 0
+            data['languages'] = _lang[:5] + [{
+                'ct': sum([i['ct'] for i in _lang[5:]]),
+                'language': 'other'
+            }]
+            data['languages'] = sorted(data['languages'], key=lambda k: k['ct'], reverse=True) 
+        else:
+            data['languages'] = _lang
+        data['success'] = True
+        return flask.jsonify(data)
+    except Exception as e:
+        print repr(str(e))
+        data['success'] = False
+        return flask.jsonify(data)
+
+
 @app.route('/api/submit', methods=['POST'])
-def submit():
+def api_submit():
     form = flask.request.form
     req = ['paste', 'language', 'short']
     for item in req:
@@ -125,14 +182,15 @@ def submit():
     last_view = created
     last_modified = created
     ip = flask.request.remote_addr
+    hits = 1
     if language_short:
         uri = "%s.%s" % (id, language_short)
     elif language:
         uri = "%s.%s" % (id, language)
     else:
         uri = id
-    query("""INSERT INTO {}_content VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""".format(prefix), (
-        id, form['paste'], author, language, language_short, created, last_view, last_modified, ip))
+    write("""INSERT INTO {}_content VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""".format(prefix), (
+        id, form['paste'], author, language, language_short, created, last_view, last_modified, ip, hits))
 
     return flask.jsonify({
         'success': True,
@@ -170,7 +228,8 @@ def api(paste, lang=None):
     if len(_tmp) > 1 or len(_tmp) < 1:
         return flask.redirect('/')
 
-    bg_query("""UPDATE {}_content SET last_view = %s WHERE id = %s""".format(prefix), [int(time.time()), paste.lower()])
+    bg_write("""UPDATE {}_content SET last_view = %s WHERE id = %s""".format(prefix), [int(time.time()), paste.lower()])
+    bg_write("""UPDATE {}_content SET hits = hits + 1 WHERE id = %s""".format(prefix), [paste.lower()])
     if not lang:
         lang = _tmp[0]['language']
     else:
@@ -198,7 +257,8 @@ def plaintext(paste, lang=None):
     _tmp = query("""SELECT * FROM {}_content WHERE id = %s""".format(prefix), [paste.lower()])
     if len(_tmp) > 1 or len(_tmp) < 1:
         return flask.redirect('/')
-    bg_query("""UPDATE {}_content SET last_view = %s WHERE id = %s""".format(prefix), [int(time.time()), paste.lower()])
+    bg_write("""UPDATE {}_content SET last_view = %s WHERE id = %s""".format(prefix), [int(time.time()), paste.lower()])
+    bg_write("""UPDATE {}_content SET hits = hits + 1 WHERE id = %s""".format(prefix), [paste.lower()])
     return flask.Response(_tmp[0]['content'], mimetype='text/plain')
 
 
@@ -287,7 +347,7 @@ def process_login():
                         'Authorization': 'token %s' % flask.session['token'],
                         # Per Githubs request, we're adding a user-agent just
                         # in case they need to get ahold of us.
-                        'User-Agent': 'https://github.com/Liamraystanley/paste.ml.git'
+                        'User-Agent': 'https://github.com/Liamraystanley/dropbin.git'
                     }
                     api_call = requests.get(uri, headers=headers).json()
                     pprint(api_call)
@@ -386,4 +446,4 @@ main()
 
 if __name__ == '__main__':
     app.debug = True
-    app.run(host='0.0.0.0', port=4444)
+    app.run(host='0.0.0.0', port=80, threaded=True)

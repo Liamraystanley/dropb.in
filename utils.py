@@ -1,21 +1,21 @@
+import sys
+sys.path += ['lib']
 import flask
 import functools
 import random
 import string
-import sys
 import re
+import time
+from dateutil.relativedelta import relativedelta
 
 
-def login_required(method):
+def auth(method):
     @functools.wraps(method)
     def wrapper(*args, **kwargs):
         if 'authed' in flask.session:
             return method(*args, **kwargs)
         else:
-            # pass for now, however we're going to need to ensure that we can
-            # forcefully pull up the login prompt on the main page. (Possibly)
-            # by injecting javascript into an onload only when they're unauthed?
-            pass
+            return flask.redirect('/')
     return wrapper
 
 
@@ -56,3 +56,20 @@ def validate(id):
         return True
     except:
         return False
+
+# Time convert usage
+# date(relativedelta(seconds=1207509))
+attrs = ['years', 'months', 'days', 'hours', 'minutes', 'seconds']
+date = lambda delta: [
+    '%d %s' % (
+        getattr(delta, attr), getattr(delta, attr) > 1 and
+        attr or attr[:-1]
+    ) for attr in attrs if getattr(delta, attr)]
+
+
+def relative(**kwargs):
+    return date(relativedelta(**kwargs))
+
+
+def hrt(tmp_time):
+    return relative(seconds=int(time.time()) - int(tmp_time))
