@@ -1,16 +1,16 @@
 {% extends 'base.html' %}
 {% block title %}New{% endblock title %}
 {% block content %}
-    {% if dup %}
-        <script type="text/javascript">
-          duplicate('{{ dup }}');
-        </script>
-    {% endif %}
-    <div id="lines">
-        &gt;
-    </div>
-    <div id="input-wrapper">
-        <textarea spellcheck="false" id="text-input"></textarea>
-    </div>
-    <div class="loader" style="display: none;">Loading...</div>
+<pre id="editor" style="display:none;">{% if dup %}{{dup.paste}}{% endif %}</pre>
+<div class="loader" style="display: none;">Loading...</div>
+<script>
+    window.editor = ace.edit("editor");
+    window.editor.setTheme("ace/theme/monokai");
+    document.getElementById('editor').style.fontSize = '12px';
+    window.editor.renderer.setScrollMargin(20, 100, 0, 0);
+    window.editor.setShowPrintMargin(false);
+    window.editor.getSession().setUseWrapMode(true);
+    document.getElementById('editor').style.display = "block";
+    window.editor.focus();
+</script>
 {% endblock content %}

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" ng-app="main">
     <head>
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -11,13 +11,13 @@
 
         <title>Dropbin &middot; {% block title %}{% endblock title %}</title>
 
-        <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+        <link href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet">
         <link href="/static/css/main.css" rel="stylesheet">
         <link href="/static/css/hl/solarized_light.css" rel="stylesheet">
-        <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
-        <script src="/static/js/jquery.min.js"></script>
-        <script src="/static/js/libs.js"></script>
-        <script src="/static/js/main.js"></script>
+        <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.4.0/css/font-awesome.min.css" rel="stylesheet">
+        <script src="//cdnjs.cloudflare.com/ajax/libs/angular.js/1.4.3/angular.min.js"></script>
+        <link href="//cdnjs.cloudflare.com/ajax/libs/angular-chart.js/0.7.2/angular-chart.css" rel="stylesheet">
+        <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.0/ace.js"></script>
     </head>
 
     <body>
@@ -42,25 +42,27 @@
                 </span>
                 {% if paste %}
                     <span class="sep">------</span>
-                    {% if paste != 'about.md' %}
+                    {% if paste.name != 'about.md' %}
                         <span data-toggle="tooltip" title="Duplicate and edit" class="sidebar-item">
-                            <a href="/dup/{{ paste }}"><i class="fa fa-copy"></i></a>
+                            <a href="/dup/{{ paste.name }}"><i class="fa fa-copy"></i></a>
                         </span>
                     {% endif %}
                     <span data-toggle="tooltip" title="Just text" class="sidebar-item">
-                        <a href="/t/{{ paste }}"><i class="fa fa-file-text"></i></a>
+                        <a href="/t/{{ paste.name }}"><i class="fa fa-file-text"></i></a>
                     </span>
                 {% endif %}
                 <span class="sep">------</span>
-                {% if paste != 'about.md' %}
-                    <span data-toggle="tooltip" title="About Dropbin" class="sidebar-item">
-                        <a href="/about.md"><i class="fa fa-info-circle"></i></a>
-                    </span>
+                {% if paste %}
+                    {% if paste.name != 'about.md' %}
+                        <span data-toggle="tooltip" title="About Dropbin" class="sidebar-item">
+                            <a href="/about.md"><i class="fa fa-info-circle"></i></a>
+                        </span>
+                    {% endif %}
                 {% endif %}
                 {% if session.authed %}
                     <span data-toggle="tooltip" title="Log out" class="sidebar-item">
                         {% if paste %}
-                            <a href="/logout?next={{ paste }}"><i class="fa fa-sign-out"></i></a>
+                            <a href="/logout?next={{ paste.name }}"><i class="fa fa-sign-out"></i></a>
                         {% else %}
                         <a href="/logout"><i class="fa fa-sign-out"></i></a>
                         {% endif %}
@@ -68,23 +70,23 @@
                 {% else %}
                     <span data-toggle="tooltip" title="Log in" class="sidebar-item">
                         {% if paste %}
-                            <a href="/login?next={{ paste }}"><i class="fa fa-sign-in"></i></a>
+                            <a href="/login?next={{ paste.name }}"><i class="fa fa-sign-in"></i></a>
                         {% else %}
                             <a href="/login"><i class="fa fa-sign-in"></i></a>
                         {% endif %}
                     </span>
                 {% endif %}
-                <!--<span data-toggle="tooltip" title="Fork on Github" class="sidebar-item">-->
-                <!--    <a href="https://github.com/Liamraystanley/paste.ml"><i class="fa fa-github"></i></a>-->
-                <!--</span>-->
-                <!-- <span data-toggle="tooltip" title="Something else" class="sidebar-item">
-                    <a href="#"><i class="fa fa-save"></i></a>
-                </span> -->
-                <a href="/"><p id="logo">paste.ml</p></a>
+                <a href="/"><p id="logo">dropbin</p></a>
             </div>
         </div>
         {% if session.authed %}
             {% include 'panel.html' %}
         {% endif %}
+        <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+        <script src="/static/js/libs.js"></script>
+        <script src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.5/js/bootstrap.min.js"></script>
+        <script src="//cdnjs.cloudflare.com/ajax/libs/Chart.js/1.0.2/Chart.min.js"></script>
+        <script src="/static/js/angular-chart.min.js"></script>
+        <script src="/static/js/main.js"></script>
     </body>
 </html>

@@ -35,30 +35,21 @@ def db_connect():
         user=str(cfg.get('Database', 'db-user')),
         passwd=str(cfg.get('Database', 'db-password')),
         db=cfg.get('Database', 'db-name'),
-        cursorclass=MySQLdb.cursors.DictCursor)
+        cursorclass=MySQLdb.cursors.DictCursor,
+        charset='utf8',
+        use_unicode=True)
 
 
 def query(*args):
-    db = db_connect()
-
-    c = db.cursor()
-    c.execute(*args)
-    return list(c.fetchall())
+    with db_connect() as cursor:
+        cursor.execute(*args)
+        return list(cursor.fetchall())
 
 
 def write(*args):
-    db = db_connect()
-
-    c = db.cursor()
-    try:
-        c.execute(*args)
-        db.commit()
-    except:
-        try:
-            db.rollback()
-        except:
-            pass
-    return list(c.fetchall())
+    with db_connect() as cursor:
+        cursor.execute(*args)
+        return list(cursor.fetchall())
 
 
 def bg_write(*args):
@@ -75,8 +66,9 @@ def uuid():
         if not query("""SELECT id FROM {}_content WHERE id = %s""".format(prefix), [_tmp]):
             return _tmp
 
+
 @app.route('/')
-def main():
+def base():
     return flask.render_template('new.html', paste=False)
 
 
@@ -85,7 +77,11 @@ def main():
 def duplicate(paste, lang=None):
     if not utils.validate(paste):
         return flask.redirect('/')
-    return flask.render_template('new.html', dup=paste)
+
+    data = get_paste(paste, lang)
+    if not data:
+        flask.redirect('/')
+    return flask.render_template('new.html', dup=data)
 
 
 @app.route('/api/pastes', methods=['POST'])
@@ -95,11 +91,11 @@ def api_user(page=1):
     limit = 8  # Assuming they want 8 results per page
     if page < 1:
         _page = 1
-    _page = int(page) -1
+    _page = int(page) - 1
     _page = _page * limit
     data = {}
     try:
-        data['posts'] = query("""SELECT id, language, language_short, created, last_modified, hits FROM {}_content WHERE author = %s ORDER BY last_modified DESC LIMIT %s,%s""".format(prefix), [flask.session['git']['id'], _page, limit])
+        data['posts'] = query("""SELECT id, LEFT(content, 200) as preview, language, language_short, created, last_modified, hits FROM {}_content WHERE author = %s ORDER BY last_modified DESC LIMIT %s,%s""".format(prefix), [flask.session['git']['id'], _page, limit])
         for i in range(len(data['posts'])):
             data['posts'][i]['hrt'] = utils.hrt(int(data['posts'][i]['last_modified']))
             if data['posts'][i]['language_short']:
@@ -128,15 +124,21 @@ def api_stats():
         for i in range(len(_lang)):
             if _lang[i]['ct'] < 1:
                 _lang[i]['ct'] = 1
-        if len(_lang) > 5:
-            cnt = 0
-            data['languages'] = _lang[:5] + [{
-                'ct': sum([i['ct'] for i in _lang[5:]]),
+        if len(_lang) > limit:
+            data['languages'] = _lang[:limit] + [{
+                'ct': sum([i['ct'] for i in _lang[limit:]]),
                 'language': 'other'
             }]
-            data['languages'] = sorted(data['languages'], key=lambda k: k['ct'], reverse=True) 
+            data['languages'] = sorted(data['languages'], key=lambda k: k['ct'], reverse=True)
         else:
             data['languages'] = _lang
+
+        data['graph'] = {
+            'languages': {
+                'labels': [x['language'] for x in data['languages']],
+                'values': [x['ct'] for x in data['languages']]
+            }
+        }
         data['success'] = True
         return flask.jsonify(data)
     except Exception as e:
@@ -200,10 +202,54 @@ def api_submit():
 
 
 @app.route('/<paste>')
-def pull_paste(paste):
+@app.route('/<paste>.<lang>')
+def pull_paste(paste, lang=None):
     if not utils.validate(paste):
         return flask.redirect('/')
-    return flask.render_template('paste.html', paste=paste.lower())
+
+    if paste.lower() == 'about' and str(lang).lower() == 'md':
+        try:
+            with open('README.md', 'r') as f:
+                file = f.read()
+                data = {
+                    'name': "about.md",
+                    'paste': file,
+                    'lines': len(file.split('\n')),
+                    'chars': len(file),
+                    'language': 'markdown'
+                }
+                return flask.render_template('paste.html', paste=data)
+        except:
+            pass
+    data = get_paste(paste, lang)
+    if not data:
+        flask.redirect('/')
+    return flask.render_template('paste.html', paste=data)
+
+
+def get_paste(paste, lang=None):
+    try:
+        _tmp = query("""SELECT * FROM {}_content WHERE id = %s""".format(prefix), [paste.lower()])
+        if len(_tmp) > 1 or len(_tmp) < 1:
+            return False
+
+        bg_write("""UPDATE {}_content SET last_view = %s WHERE id = %s""".format(prefix), [int(time.time()), paste.lower()])
+        bg_write("""UPDATE {}_content SET hits = hits + 1 WHERE id = %s""".format(prefix), [paste.lower()])
+        if not lang:
+            lang = _tmp[0]['language']
+            name = str(paste)
+        else:
+            lang = lang.lower()
+            name = "{}.{}".format(str(paste), str(lang))
+        return {
+            'name': name,
+            'paste': _tmp[0]['content'],
+            'lines': len(_tmp[0]['content'].split('\n')),
+            'chars': len(_tmp[0]['content']),
+            'language': lang
+        }
+    except:
+        return False
 
 
 @app.route('/api/<paste>')
@@ -211,19 +257,6 @@ def pull_paste(paste):
 def api(paste, lang=None):
     if not utils.validate(paste):
         return flask.redirect('/')
-    if paste.lower() == 'about' and str(lang).lower() == 'md':
-        try:
-            with open('README.md', 'r') as f:
-                file = f.read()
-                data = {
-                    'paste': file,
-                    'lines': len(file.split('\n')),
-                    'chars': len(file),
-                    'language': 'markdown'
-                }
-                return flask.jsonify(data)
-        except:
-            pass
     _tmp = query("""SELECT * FROM {}_content WHERE id = %s""".format(prefix), [paste.lower()])
     if len(_tmp) > 1 or len(_tmp) < 1:
         return flask.redirect('/')

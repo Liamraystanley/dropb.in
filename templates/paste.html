@@ -1,12 +1,15 @@
 {% extends 'base.html' %}
-{% block title %}{{ paste }}{% endblock title %}
+{% block title %}{{ paste.name }}{% endblock title %}
 {% block content %}
-    <div id="more-info"></div>
-    <script type="text/javascript">
-        fetch('{{ paste }}', 'load');
-    </script>
-    <div id="lines"></div>
-    <pre id="box" tabindex="0">
-        <div class="loader">Loading...</div>
-    </pre>
+    <div id="more-info" class="noselect">
+    	<span id="info-language">{{paste.language}}</span>
+    	<span><span id="info-lines">{{paste.lines}}</span> lines</span>
+    	<span><span id="info-chars">{{paste.chars}}</span> chars</span>
+    </div>
+    <div id="lines">
+    	{% for i in range(paste.lines) %}
+    		<a href="#{{i + 1}}"><div id="{{i + 1}}">{{i + 1}}.</div></a>
+    	{% endfor %}
+    </div>
+    <pre id="box" tabindex="0">{{paste.paste}}</pre>
 {% endblock content %}
