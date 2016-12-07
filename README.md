@@ -67,7 +67,13 @@ Then re-run the below:
 $ sudo pip install mysql-python gunicorn
 ```
 
-Once everythings installed, you should be able to startup the site:
+Now copy the configuration file, and edit it to match the above setup:
+
+```
+$ cp example.cfg main.cfg
+```
+
+Once everything is installed, you should be able to startup the site:
 
 ```
 $ gunicorn -w 4 -b 0.0.0.0:4444 app:app

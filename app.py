@@ -17,12 +17,19 @@ from pprint import pprint
 
 # Attempt to read the configuration file
 cfg = ConfigParser.ConfigParser()
+cnf_location = "main.cfg"
+
+# Check to see if the configuration file exists
+if not os.path.isfile(cnf_location):
+    print("Unable to read main.cfg. Does it exist? Exiting.")
+    os._exit(1)
+
+# Attempt to load and parse the configuration file
 try:
-    print(os.getcwd())
-    cfg.read('main.cfg')
+    cfg.read(cnf_location)
 except Exception as e:
     print("There was an issue parsing main.cfg (%s)" % str(e))
-    print("Please fix these issues then restart paste.ml!")
+    print("Please fix these issues then restart dropbin!")
     os._exit(1)
 
 app = flask.Flask(__name__)
