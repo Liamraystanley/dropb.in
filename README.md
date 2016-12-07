@@ -74,4 +74,4 @@ $ gunicorn -w 4 -b 0.0.0.0:4444 app:app
 ```
 
 If you happen to have any further issues, feel free to submit it with more
-information [here](https://github.com/Liamraystanley/dropbin/issues)
+information [here](https://github.com/lrstanley/dropbin/issues)

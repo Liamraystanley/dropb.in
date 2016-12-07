@@ -1,6 +1,7 @@
 $sidebar-width: 50px;
 $lines-width: 55px;
-$bg-color: #252525; // #00282C
+$paste-padding: 25px;
+$bg-color: #252525;
 $bg-special: #007381;
 $paste-font: monospace;
 
@@ -75,7 +76,7 @@ html, body {
 #box {
     @extend .reset;
     padding-left: $lines-width;
-    padding-top: 15px;
+    padding-top: $paste-padding;
     background: transparent !important;
     color: #fff;
     font-size: 13px;
@@ -98,7 +99,7 @@ a {
     margin-left: -$lines-width;
     margin-right: $lines-width / 3;
     padding-right: 5px;
-    padding-top: 14px;
+    padding-top: $paste-padding;
     padding-bottom: 25px;
     text-align: right;
     font-family: $paste-font;
@@ -161,7 +162,7 @@ a {
     right: $sidebar-width + $pad;
     > span {
         background-color: $bg-special;
-        color: #939393;
+        color: #FFFFFF;
         padding: 2px 3px 2px 3px;
         margin-left: 2px;
         margin-right: 2px;

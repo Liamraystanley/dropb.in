@@ -57,7 +57,7 @@ html, body {
 
 #box {
   padding-left: 55px;
-  padding-top: 15px;
+  padding-top: 25px;
   background: transparent !important;
   color: #fff;
   font-size: 13px;
@@ -77,7 +77,7 @@ a {
   margin-left: -55px;
   margin-right: 18.33333px;
   padding-right: 5px;
-  padding-top: 14px;
+  padding-top: 25px;
   padding-bottom: 25px;
   text-align: right;
   font-family: monospace;
@@ -128,7 +128,7 @@ a {
   right: 55px; }
   #more-info > span {
     background-color: #007381;
-    color: #939393;
+    color: #FFFFFF;
     padding: 2px 3px 2px 3px;
     margin-left: 2px;
     margin-right: 2px;

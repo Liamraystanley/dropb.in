@@ -18,6 +18,7 @@ from pprint import pprint
 # Attempt to read the configuration file
 cfg = ConfigParser.ConfigParser()
 try:
+    print(os.getcwd())
     cfg.read('main.cfg')
 except Exception as e:
     print("There was an issue parsing main.cfg (%s)" % str(e))
@@ -86,8 +87,13 @@ def duplicate(paste, lang=None):
 
 @app.route('/api/pastes', methods=['POST'])
 @app.route('/api/pastes/<int:page>', methods=['POST'])
+@app.route('/api/pastes/<sortmode>', methods=['POST'])
+@app.route('/api/pastes/<int:page>/<sortmode>', methods=['POST'])
 @utils.auth
-def api_user(page=1):
+def api_user(page=1, sortmode="last_modified"):
+    def out(text):
+        print("\n\n\n" + str(text) + "\n\n\n")
+
     limit = 8  # Assuming they want 8 results per page
     if page < 1:
         _page = 1
@@ -101,12 +107,12 @@ def api_user(page=1):
             if data['posts'][i]['language_short']:
                 data['posts'][i]['language_short'] = '.' + data['posts'][i]['language_short']
         data['count'] = query("""SELECT COUNT(id) AS cnt FROM {}_content WHERE author = %s""".format(prefix), [flask.session['git']['id']])[0]['cnt']
-        data['pages'] = int(math.ceil(float(data['count']) / float(8)))
+        data['pages'] = int(math.ceil(float(data['count']) / float(limit)))
         data['page_current'] = int(page)
-        if data['page_current'] >= 3:
-            data['page_range'] = range(int(page) - 2, range(data['pages'], data['pages'] + 2)[:2][-1])
-        else:
-            data['page_range'] = range(1, data['pages'] + 1)[:5]
+        # First make sure we've got the low alright
+        data['page_range'] = [pagenum for pagenum in range(int(page) - 2, int(page) + 3) if pagenum > 0]
+        data['page_range'] += range(data['page_range'][-1] + 1, data['page_range'][-1] + 5 - len(data['page_range']))
+        data['page_range'] = [pagenum for pagenum in data['page_range'] if pagenum <= data['pages']]
         data['success'] = True
         return flask.jsonify(data)
     except Exception as e:
@@ -246,7 +252,8 @@ def get_paste(paste, lang=None):
             'paste': _tmp[0]['content'],
             'lines': len(_tmp[0]['content'].split('\n')),
             'chars': len(_tmp[0]['content']),
-            'language': lang
+            'language': lang,
+            'hits': int(_tmp[0]['hits'])
         }
     except:
         return False
@@ -380,7 +387,7 @@ def process_login():
                         'Authorization': 'token %s' % flask.session['token'],
                         # Per Githubs request, we're adding a user-agent just
                         # in case they need to get ahold of us.
-                        'User-Agent': 'https://github.com/Liamraystanley/dropbin.git'
+                        'User-Agent': 'https://github.com/lrstanley/dropbin.git'
                     }
                     api_call = requests.get(uri, headers=headers).json()
                     pprint(api_call)
@@ -479,4 +486,4 @@ main()
 
 if __name__ == '__main__':
     app.debug = True
-    app.run(host='0.0.0.0', port=80, threaded=True)
+    app.run(host='0.0.0.0', port=8080, threaded=True)
